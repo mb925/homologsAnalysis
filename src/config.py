@@ -9,6 +9,7 @@ data = {
     "sequences_regions": absolute + 'data/sequences_regions',
     "clustering": absolute + 'data/clustering',
     "filtering": absolute + 'data/filter',
+    "alignments": absolute + 'data/alignments_global_needle',
 }
 
 fasta = {
@@ -18,4 +19,9 @@ fasta = {
 
 alignments = {
     "global": absolute + 'data/alignments_global_needle',
+}
+
+
+bash = {
+    "results": absolute + 'bash_scripts/results_needle',
 }

@@ -7,22 +7,22 @@ la più aggiornata è entries_2020_12_c
 oppure sull'interfaccia di Disprot
 
 
->>>> TRASFORMARE IL JSON IN FASTA
+>> TRASFORMARE IL JSON IN FASTA
 
 cat disprot_2020_12.json | jq -cr '.data[] | [.acc, .sequence] | @csv' | tr -d '"' | awk -F"," '{printf(">%s\n%s\n",$1,$2)}'
 
->>> SPLITTARE IL FASTA IN SINGOLI FASTA
+>> SPLITTARE IL FASTA IN SINGOLI FASTA
 
 fasta file is in data/disprot
 awk -F "|" '/^>/ {close(F); ID=$1; gsub("^>", "", ID); F=ID".fasta"} {print >> F}' yourfile.fa
 rm .fasta # gets generated in the process, don't know what it is but I don't need it
 
->>> PER L'ALLINEAMENTO GLOBALE
->>> CREARE LA MATRICE TRIANGOLARE SENZA DIAGONALE
+>> PER L'ALLINEAMENTO GLOBALE
+>> CREARE LA MATRICE TRIANGOLARE SENZA DIAGONALE
 python pairwise.py # to create the pairwise couples
 
 
->>> I have changed folders, YOU NEED TO CHANGE PATHS BEFORE EXECUTING THE BASH SCRIPTS
+>> I have changed folders, YOU NEED TO CHANGE PATHS BEFORE EXECUTING THE BASH SCRIPTS
 # dividi global_triang_matrix in liste da 5k coppie e crea lista di liste
 mkdir -p lists sge-out results
 ./split-list.sh data/alignments_global_needle/global_triangular_matrix.csv
@@ -42,7 +42,7 @@ qsub -t 1-$(cat list_of_lists.dat|wc -l) -o sge-out/ -e sge-out/ -cwd ./submit-n
 # colleziona i risultati
 cat results/list_*.out
 
-#>>>>>>>>> LANCIARE EMBOSS NEEDLE SULLE COPPIE DI SEQUENZE
+#>>>>>> LANCIARE EMBOSS NEEDLE SULLE COPPIE DI SEQUENZE
 
 # WATER
 rm -rf sge-out/submit-water-on-lists.sh* results/*
@@ -62,7 +62,7 @@ enter the results folder and copy results with scp marbev@echidna:IDPanalysis/re
 concat all results with cat * > all-global-needle.txt
 
 
->>> PIPELINE DISORDER ANALYSIS AFTER NEEDLE UNIPROTS
+>> PIPELINE DISORDER ANALYSIS AFTER NEEDLE UNIPROTS
 # filter >= 30% identity
 1. filter_identity(30) filter.py 
 # generate clusters

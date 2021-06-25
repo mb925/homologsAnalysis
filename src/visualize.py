@@ -11,9 +11,9 @@ import config as cfg
 from collections import Counter
 import random
 
-def main():
 
-    # visualize_overlap_identity()
+def main():
+    visualize_overlap_identity()
     # visualize_overlap_identity_hist()
     # visualize_alignments()
     # generate_sqv_input('inconsistent_regions')
@@ -23,11 +23,11 @@ def main():
     # visualize_pairs()
     # compare_methods(['transferable_regions', 'inconsistent_regions', 'question_marks', 'consistent_regions'], 'term', 'Disorder function')
     # compare_methods(['transferable_regions', 'inconsistent_regions', 'question_marks', 'consistent_regions'], 'ec', 'Structural state')
-    compare_methods(['transferable_regions', 'inconsistent_regions', 'question_marks', 'consistent_regions'], 'term', 'Interaction partner')
+    # compare_methods(['transferable_regions', 'inconsistent_regions', 'question_marks', 'consistent_regions'], 'term',
+    #                 'Interaction partner')
 
 
 def compare_methods(dataset_list, evaluated_column, term_namespace):
-
     df2 = pd.read_csv(cfg.data['sequences_regions'] + '/search_in_disprot.tsv', sep='\t')
     df2 = df2.loc[(df2.term_namespace == term_namespace)]
     if evaluated_column != 'ec':
@@ -35,9 +35,10 @@ def compare_methods(dataset_list, evaluated_column, term_namespace):
     methods_match_df = pd.DataFrame()
     class_pairs = []
     methods_match = []
-    techniques_df = pd.DataFrame(columns=['id1','id2',evaluated_column, 'dataset', 'methods_match'])
+    techniques_df = pd.DataFrame(columns=['id1', 'id2', evaluated_column, 'dataset', 'methods_match'])
     for dataset in dataset_list:
-        df1 = pd.read_csv(cfg.data['visualizing'] + '/alignment-files/' + dataset + '.csv', sep='\t').groupby(['id1', 'id2']).size()
+        df1 = pd.read_csv(cfg.data['visualizing'] + '/alignment-files/' + dataset + '.csv', sep='\t').groupby(
+            ['id1', 'id2']).size()
         reset_df = df1.reset_index()
 
         for index, row in reset_df.iterrows():
@@ -46,10 +47,8 @@ def compare_methods(dataset_list, evaluated_column, term_namespace):
             m1 = m1.to_numpy()
             m2 = m2.to_numpy()
 
-
             methods_match_value = len(set(m1).intersection(set(m2)))
             if methods_match_value != 0:
-
                 total = len(set(m1)) + len(set(m2))
                 methods_match_value = methods_match_value / total
             methods_match_value = float('%.5f' % methods_match_value)
@@ -57,11 +56,13 @@ def compare_methods(dataset_list, evaluated_column, term_namespace):
 
             for el1 in m1:
                 techniques_df = techniques_df.append(
-                    {'id1': row['id1'], 'id2': row['id2'], evaluated_column: el1, 'dataset': dataset.split('_')[0], 'methods_match':methods_match_value},
+                    {'id1': row['id1'], 'id2': row['id2'], evaluated_column: el1, 'dataset': dataset.split('_')[0],
+                     'methods_match': methods_match_value},
                     ignore_index=True)
             for el2 in m2:
                 techniques_df = techniques_df.append(
-                    {'id1': row['id1'], 'id2': row['id2'], evaluated_column: el2, 'dataset': dataset.split('_')[0],'methods_match':methods_match_value},
+                    {'id1': row['id1'], 'id2': row['id2'], evaluated_column: el2, 'dataset': dataset.split('_')[0],
+                     'methods_match': methods_match_value},
                     ignore_index=True)
 
             class_pairs.append(dataset.split('_')[0])
@@ -71,7 +72,8 @@ def compare_methods(dataset_list, evaluated_column, term_namespace):
         methods_count = pd.DataFrame.from_dict(letter_counts, orient='index')
         methods_count.plot(kind='bar', title=dataset + ' ' + term_namespace)
         plt.tight_layout()
-        plt.savefig(cfg.data['visualizing'] + '/statistics/count/' + evaluated_column + '_' + term_namespace + '_' + dataset.split('_')[0] + '.png')
+        # plt.savefig(cfg.data['visualizing'] + '/statistics/count/' + evaluated_column + '_' + term_namespace + '_' +
+        #             dataset.split('_')[0] + '.png')
 
     # methods_match_df['matching_' + evaluated_column] = methods_match
     # methods_match_df['dataset'] = class_pairs
@@ -89,12 +91,15 @@ def compare_methods(dataset_list, evaluated_column, term_namespace):
 
 
 def visualize_pairs():
+    df1 = pd.read_csv(cfg.data['visualizing'] + '/alignment-files/inconsistent_regions.csv', sep='\t').groupby(
+        ['id1', 'id2']).size()
 
-    df1 = pd.read_csv(cfg.data['visualizing'] + '/alignment-files/inconsistent_regions.csv', sep='\t').groupby(['id1', 'id2']).size()
-
-    df2 = pd.read_csv(cfg.data['visualizing'] + '/alignment-files/consistent_regions.csv', sep='\t').groupby(['id1', 'id2']).size()
-    df3 = pd.read_csv(cfg.data['visualizing'] + '/alignment-files/question_marks.csv', sep='\t').groupby(['id1', 'id2']).size()
-    df4 = pd.read_csv(cfg.data['visualizing'] + '/alignment-files/transferable_regions.csv', sep='\t').groupby(['id1', 'id2']).size()
+    df2 = pd.read_csv(cfg.data['visualizing'] + '/alignment-files/consistent_regions.csv', sep='\t').groupby(
+        ['id1', 'id2']).size()
+    df3 = pd.read_csv(cfg.data['visualizing'] + '/alignment-files/question_marks.csv', sep='\t').groupby(
+        ['id1', 'id2']).size()
+    df4 = pd.read_csv(cfg.data['visualizing'] + '/alignment-files/transferable_regions.csv', sep='\t').groupby(
+        ['id1', 'id2']).size()
 
     value1 = len(df1)
     value2 = len(df2)
@@ -104,10 +109,10 @@ def visualize_pairs():
     class2 = ['consistent'] * value2
     class3 = ['question_marks'] * value3
     class4 = ['transferable'] * value4
-    df1 = pd.DataFrame({'len': df1,'class': class1})
-    df2 = pd.DataFrame({'len': df2,'class': class2})
-    df3 = pd.DataFrame({'len': df3,'class': class3})
-    df4 = pd.DataFrame({'len': df4,'class': class4})
+    df1 = pd.DataFrame({'len': df1, 'class': class1})
+    df2 = pd.DataFrame({'len': df2, 'class': class2})
+    df3 = pd.DataFrame({'len': df3, 'class': class3})
+    df4 = pd.DataFrame({'len': df4, 'class': class4})
 
     data = pd.DataFrame()
     data = data.append(df1, ignore_index=False)
@@ -124,10 +129,8 @@ def visualize_pairs():
     plt.savefig(cfg.data['visualizing'] + '/statistics/length_class.png')
 
 
-
-
 def generate_sqv_input(dataset):
-    df = pd.read_csv(cfg.data['visualizing'] +  '/alignment-files/' + dataset + '.csv', sep='\t')
+    df = pd.read_csv(cfg.data['visualizing'] + '/alignment-files/' + dataset + '.csv', sep='\t')
 
     ov_sh = pd.read_csv(cfg.data['visualizing'] + '/overlap-shortest.csv', sep='\t')
 
@@ -166,7 +169,6 @@ def generate_sqv_input(dataset):
         print(el[0])
         # print(el[1])
 
-
         organism1 = (dis.loc[dis['acc'] == el[0]])['organism'].iloc[0]
         organism2 = (dis.loc[dis['acc'] == el[1]])['organism'].iloc[0]
 
@@ -183,13 +185,12 @@ def generate_sqv_input(dataset):
 
         data[el[0] + '-' + el[1]] = {'data': seqs, 'values': values}
 
-
     with open(cfg.data['visualizing'] + '/alignment-files/sqv/' + dataset + '.json', 'w') as json_file:
         json.dump(data, json_file)
 
 
 def visualize_overlap_identity():
-    ident, over_mat, over_mis, union_df, shortest_region = [], [], [], [], []
+    ident, region_identity, region_overlap, union_df, local_region_overlap, local_region_identity = [], [], [], [], [], []
 
     df = pd.read_csv(cfg.data['rearrange'] + '/all-dataframe.tsv', sep='\t')
     identity_df = pd.read_csv(cfg.data['clustering'] + '/components-filtered.tsv', sep='\t')
@@ -248,33 +249,40 @@ def visualize_overlap_identity():
         if num_match != 0:
             ov_match = round((num_match / union), 2)
 
-        over_mis.append(ov_sim)
-        over_mat.append(ov_match)
+        region_overlap.append(ov_sim)
+        region_identity.append(ov_match)
 
         if num_sim != 0:
-            # region overlap / shortest region
+            # local region overlap: matches and mismatches over the length of the shortest region
 
             minimum = min(m5['union-region1'][i], m5['union-region2'][i])
             print(minimum, ' ', union)
             if minimum == union:
                 print('hey!', ' ', minimum, ' ', union, ' ', num_sim)
                 print(m5.iloc[i])
-            shortest_region.append(round(num_sim / minimum, 2))
+            local_region_overlap.append(round(num_sim / minimum, 2))
         else:
-            shortest_region.append(0)
+            local_region_overlap.append(0)
+
+        if num_match != 0:
+            # region overlap / shortest region
+            minimum = min(m5['union-region1'][i], m5['union-region2'][i])
+            local_region_identity.append(round(num_match / minimum, 2))
+        else:
+            local_region_identity.append(0)
 
         # print(round(num_sim / min(m5['union-region1'][i], m5['union-region1'][i]), 2))
         i += 1
 
-    m5['overlap-similar/union'] = over_mis
+    m5['overlap-similar/union'] = region_overlap
     # print(m5['union-region2'].values)
     # print(m5['union-region1'].values)
     # print(m5['overlap-similar'])
     # print(shortest_region)
     m5.to_csv(cfg.data['visualizing'] + '/overlap-union-identity.csv', index=None, sep='\t')
     ov_sh = pd.DataFrame({'id1': m5['id1'], 'id2': m5['id2'], 'identity': m5['identity'],
-                          'shortest_region': shortest_region,
-                          'overlap-similar': over_mis})
+                          'local_region_overlap': local_region_overlap,
+                          'region_overlap': region_overlap})
 
     # print(m5)
 
@@ -285,53 +293,48 @@ def visualize_overlap_identity():
     fig.suptitle('overlap/union', fontsize=24)
 
     ax1 = fig.add_subplot(1, 3, 1)
-    ax1.set_title('colored by overlap identical')
+    ax1.set_title('colored by region overlap')
     ax1.set_ylabel('region overlap', fontsize=20)
-    ax1.set_xlabel('global identity', fontsize=20)
+    ax1.set_xlabel('global sequence identity', fontsize=20)
     cm = plt.cm.get_cmap('seismic')
-    sc = ax1.scatter(ident, over_mis, c=over_mat, cmap=cm)
+    sc = ax1.scatter(ident, region_overlap, c=region_identity, cmap=cm)
     plt.colorbar(sc)
 
-
     ax2 = fig.add_subplot(1, 3, 2)
-    ax2.scatter(ident, shortest_region, c=over_mat, cmap=cm)
-    ax2.set_xlabel('global identity', fontsize=20)
-    ax2.set_ylabel('region overlap shortest', fontsize=20)
+    sc2 = ax2.scatter(ident, region_overlap, c=local_region_overlap, cmap=cm)
+    plt.colorbar(sc2)
+
+    ax2.set_xlabel('global sequence identity', fontsize=20)
+    ax2.set_ylabel('region overlap', fontsize=20)
+    ax2.set_title('colored by local region overlap')
 
     ax3 = fig.add_subplot(1, 3, 3)
-    ax3.scatter(ident, over_mat)
-    ax3.set_xlabel('global identity', fontsize=20)
-    ax3.set_ylabel('region identity', fontsize=20)
-
-    union = normalize_data(m5['union'])
-    ax3 = fig.add_subplot(1, 3, 2)
-    sc3 = ax3.scatter(ident, over_mis, c=union, cmap=cm)
+    sc3 = ax3.scatter(ident, region_overlap, c=local_region_identity, cmap=cm)
     plt.colorbar(sc3)
 
-
-    ax3.set_xlabel('identity', fontsize=20)
-    ax3.set_ylabel('overlap identical/union', fontsize=20)
-    ax3.set_title('colored by union')
+    ax3.set_xlabel('global sequence identity', fontsize=20)
+    ax3.set_ylabel('region overlap', fontsize=20)
+    ax3.set_title('colored by local region identity')
     plt.show()
 
-    # fig.savefig(cfg.data['visualizing'] + '/identity-overlap.png')
-
+    fig.savefig(cfg.data['visualizing'] + '/global_identity-region_overlap.png')
+    #
     # cm = plt.cm.get_cmap('seismic')
     # fig = plt.figure(figsize=(20, 10), dpi=50)
     #
-    # fig.suptitle('region identity and region overlap shortest', fontsize=24)
+    # # fig.suptitle('region identity and region overlap shortest', fontsize=24)
     # ax1 = fig.add_subplot(1, 2, 1)
     # ax1.set_xlabel('region overlap', fontsize=20)
     # ax1.set_ylabel('region identity', fontsize=20)
-    # ax1.scatter(over_mis, over_mat, c=over_mat, cmap=cm)
+    # ax1.scatter(over_mis, over_mat)
     #
     # ax2 = fig.add_subplot(1, 2, 2)
     # ax2.set_xlabel('region overlap', fontsize=20)
-    # ax2.set_ylabel('region overlap shortest', fontsize=20)
-    # ax2.scatter(over_mis, shortest_region, c=over_mat, cmap=cm)
+    # ax2.set_ylabel('local region identity', fontsize=20)
+    # ax2.scatter(over_mis, shortest_region)
     #
     # plt.show()
-    # fig.savefig('region-identity-shortest.png')
+    # fig.savefig(cfg.data['visualizing'] + '/region-identity_local-region-identity.png')
 
 
 def normalize_data(data):
@@ -354,6 +357,13 @@ def visualize_overlap_identity_hist():
         else:
             dict[id1.split('_')[0]] = []
             dict[id1.split('_')[0]].append(df['identity'][i])
+    for i, id2 in enumerate(df['id2']):
+        if id2 in dict:
+            dict[id2].append(df['identity'][i])
+
+        else:
+            dict[id2.split('_')[0]] = []
+            dict[id2.split('_')[0]].append(df['identity'][i])
     print(dict)
     for key in dict:
         max_val = max(dict[key])
@@ -363,33 +373,40 @@ def visualize_overlap_identity_hist():
     print(sorted(data_overlap))
 
     # plt.hist(data, bins=20) # !!!do not run both plots together or the results will overlap
-    # plt.xlabel('max identity')
+    # plt.xlabel('max global sequence identity')
     # plt.ylabel('# proteins')
-    # plt.gcf().savefig('max-identity.png')
+    # # plt.show()
+    # plt.gcf().savefig(cfg.data['visualizing'] + '/max_global_sequence_identity.png')
 
-    plt.xlabel('overlap')
+    plt.xlabel('region overlap')
     plt.ylabel('# pairs')
 
     plt.hist(data_overlap, bins=20)
-    plt.gcf().savefig('overlap-similar-hist.png')
+    plt.gcf().savefig(cfg.data['visualizing'] + '/region_overlap_distribution.png')
 
 
 def visualize_alignments():
     df = pd.read_csv(cfg.data['rearrange'] + '/all-dataframe.tsv', sep='\t')
     m5 = pd.read_csv(cfg.data['visualizing'] + '/overlap-union-identity.csv', sep='\t')
-    inconsistent_regions = m5.loc[(m5['overlap-similar/union'] <= 0.5) & (m5['overlap-similar/union'] >= 0.1) & (m5['identity'] >= 50)][['id1', 'id2']]
+    inconsistent_regions = \
+    m5.loc[(m5['overlap-similar/union'] <= 0.5) & (m5['overlap-similar/union'] >= 0.1) & (m5['identity'] >= 50)][
+        ['id1', 'id2']]
     question_marks = m5.loc[(m5['overlap-similar/union'] <= 0.2) & (m5['identity'] >= 50)][['id1', 'id2']]
     transferable_regions = m5.loc[(m5['overlap-similar/union'] >= 0.5) & (m5['identity'] <= 50)][['id1', 'id2']]
     consistent_regions = m5.loc[(m5['overlap-similar/union'] >= 0.5) & (m5['identity'] >= 50)][['id1', 'id2']]
     print(m5)
     inconsistent_dataset = df.merge(inconsistent_regions, on=['id1', 'id2'], how='right')
-    inconsistent_dataset.to_csv(cfg.data['visualizing'] + '/alignment-files/inconsistent_regions.csv', index=None, sep='\t')
+    inconsistent_dataset.to_csv(cfg.data['visualizing'] + '/alignment-files/inconsistent_regions.csv', index=None,
+                                sep='\t')
     question_marks_dataset = df.merge(question_marks, on=['id1', 'id2'], how='right')
     question_marks_dataset.to_csv(cfg.data['visualizing'] + '/alignment-files/question_marks.csv', index=None, sep='\t')
     transferable_regions_dataset = df.merge(transferable_regions, on=['id1', 'id2'], how='right')
-    transferable_regions_dataset.to_csv(cfg.data['visualizing'] + '/alignment-files/transferable_regions.csv', index=None, sep='\t')
+    transferable_regions_dataset.to_csv(cfg.data['visualizing'] + '/alignment-files/transferable_regions.csv',
+                                        index=None, sep='\t')
     consistent_regions_dataset = df.merge(consistent_regions, on=['id1', 'id2'], how='right')
-    consistent_regions_dataset.to_csv(cfg.data['visualizing'] + '/alignment-files/consistent_regions.csv', index=None, sep='\t')
+    consistent_regions_dataset.to_csv(cfg.data['visualizing'] + '/alignment-files/consistent_regions.csv', index=None,
+                                      sep='\t')
+
 
 if __name__ == '__main__':
     sys.exit(main())
