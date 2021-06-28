@@ -9,18 +9,19 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import config as cfg
 from collections import Counter
-import random
+import statistics
 
 
 def main():
-    visualize_overlap_identity()
+    # visualize_overlap_identity()
     # visualize_overlap_identity_hist()
     # visualize_alignments()
     # generate_sqv_input('inconsistent_regions')
     # generate_sqv_input('consistent_regions')
     # generate_sqv_input('question_marks')
     # generate_sqv_input('transferable_regions')
-    # visualize_pairs()
+    # visualize_pairs(['inconsistent_regions', 'transferable_regions', 'question_marks', 'consistent_regions'])
+    visualize_pairs_regions(['inconsistent_regions', 'transferable_regions', 'question_marks', 'consistent_regions'])
     # compare_methods(['transferable_regions', 'inconsistent_regions', 'question_marks', 'consistent_regions'], 'term', 'Disorder function')
     # compare_methods(['transferable_regions', 'inconsistent_regions', 'question_marks', 'consistent_regions'], 'ec', 'Structural state')
     # compare_methods(['transferable_regions', 'inconsistent_regions', 'question_marks', 'consistent_regions'], 'term',
@@ -89,44 +90,120 @@ def compare_methods(dataset_list, evaluated_column, term_namespace):
 
     print(methods_match_df)
 
+def visualize_pairs_regions(dataset_list):
+    length, id, values, cl = [], [], [], []
+    data = pd.DataFrame({'length': length, 'id': id, 'value': values, 'class': cl})
+    for dataset in dataset_list:
+        with open(cfg.data['visualizing'] + '/alignment-files/' + dataset + '.csv', 'r') as file:
+            counts1 = {}
+            counts2 = {}
+            counts_id1 = []
+            counts_id2 = []
+            pair = ''
+            count1 = 0
+            count2 = 0
+            next(file)
+            flag1 = False
+            flag2 = False
+            for line in file:
+                if line.split('\t')[0] + '_' + line.split('\t')[1] != pair:
 
-def visualize_pairs():
-    df1 = pd.read_csv(cfg.data['visualizing'] + '/alignment-files/inconsistent_regions.csv', sep='\t').groupby(
-        ['id1', 'id2']).size()
+                    #id1
+                    if len(counts_id1) > 0:
+                        counts1[line.split('\t')[0]] = statistics.mean(counts_id1)
+                    else:
+                        counts1[line.split('\t')[0]] = 0
+                    count1 = 0
+                    flag1 = False
+                    counts_id1 = []
 
-    df2 = pd.read_csv(cfg.data['visualizing'] + '/alignment-files/consistent_regions.csv', sep='\t').groupby(
-        ['id1', 'id2']).size()
-    df3 = pd.read_csv(cfg.data['visualizing'] + '/alignment-files/question_marks.csv', sep='\t').groupby(
-        ['id1', 'id2']).size()
-    df4 = pd.read_csv(cfg.data['visualizing'] + '/alignment-files/transferable_regions.csv', sep='\t').groupby(
-        ['id1', 'id2']).size()
+                    #id2
+                    if len(counts_id2) > 0:
+                        counts2[line.split('\t')[1]] = statistics.mean(counts_id2)
+                    else:
+                        counts2[line.split('\t')[1]] = 0
+                    count2 = 0
+                    flag2 = False
+                    counts_id2 = []
 
-    value1 = len(df1)
-    value2 = len(df2)
-    value3 = len(df3)
-    value4 = len(df4)
-    class1 = ['inconsistent'] * value1
-    class2 = ['consistent'] * value2
-    class3 = ['question_marks'] * value3
-    class4 = ['transferable'] * value4
-    df1 = pd.DataFrame({'len': df1, 'class': class1})
-    df2 = pd.DataFrame({'len': df2, 'class': class2})
-    df3 = pd.DataFrame({'len': df3, 'class': class3})
-    df4 = pd.DataFrame({'len': df4, 'class': class4})
+                    pair = line.split('\t')[0] + '_' + line.split('\t')[1]
 
-    data = pd.DataFrame()
-    data = data.append(df1, ignore_index=False)
-    data = data.append(df2, ignore_index=False)
-    data = data.append(df3, ignore_index=False)
-    data = data.append(df4, ignore_index=False)
+                else:
+                    # id1
+                    if line.split('\t')[6] == '1.0':
+                        count1 += 1
+                        flag1 = True
+                    else:
+                        if flag1:
+                            counts_id1.append(count1)
+                            count1 = 0
+                            flag1 = False
 
-    sns.set_theme(style="darkgrid")
-    sns.countplot(x="class", data=data)
-    plt.savefig(cfg.data['visualizing'] + '/statistics/proteins_class.png')
+                    # id2
+                    if line.split('\t')[7] == '1.0':
+                        count2 += 1
+                        flag2 = True
+                    else:
+                        if flag2:
+                            counts_id2.append(count2)
+                            count2 = 0
+                            flag2 = False
 
-    sns.barplot(x="class", y="len", data=data)
-    # sns.catplot(x="class", y="len", jitter=False, data=data)
-    plt.savefig(cfg.data['visualizing'] + '/statistics/length_class.png')
+            for el in counts1:
+                print(el)
+                id.append(el)
+                length.append('length_1')
+                values.append(counts1[el])
+                cl.append(dataset.split('_')[0])
+
+            for el in counts2:
+                id.append(el)
+                length.append('length_2')
+                values.append(counts2[el])
+                cl.append(dataset.split('_')[0])
+
+    data['length'] = length
+    data['id'] = id
+    data['value'] = values
+    data['class'] = cl
+    sns.violinplot(data=data, y='value', split=True, hue='length', x='class', cut=0)
+    plt.show()
+    # plt.savefig(cfg.data['visualizing'] + '/statistics/regions_length_class.png')
+
+
+def visualize_pairs(dataset_list):
+    length, id, values, cl = [], [], [], []
+    data = pd.DataFrame({'length': length, 'id': id, 'value': values, 'class': cl})
+    for dataset in dataset_list:
+        df = pd.read_csv(cfg.data['visualizing'] + '/alignment-files/' + dataset + '.csv', sep='\t')
+        df_id1 = df.loc[df.s1 != '-']
+        df_id2 = df.loc[df.s2 != '-']
+        size_df_id1 = df_id1.groupby(['id1', 'id2']).size()
+        size_df_id2 = df_id2.groupby(['id1', 'id2']).size()
+        id1, id2 = [], []
+        for index, value in size_df_id1.items():
+           if index[0] not in id1:
+               id.append(index[0])
+               length.append('length_1')
+               id1.append(index[0])
+               values.append(value)
+               cl.append(dataset.split('_')[0])
+        for index, value in size_df_id2.items():
+            if index[0] not in id2:
+                id.append(index[1])
+                length.append('length_2')
+                id2.append(index[1])
+                values.append(value)
+                cl.append(dataset.split('_')[0])
+
+    data['length'] = length
+    data['id'] = id
+    data['value'] = values
+    data['class'] = cl
+
+    sns.violinplot(data=data, y='value', split=True, hue='length', x='class')
+
+    plt.savefig(cfg.data['visualizing'] + '/statistics/protein_length_class.png')
 
 
 def generate_sqv_input(dataset):
@@ -192,6 +269,7 @@ def generate_sqv_input(dataset):
 def visualize_overlap_identity():
     ident, region_identity, region_overlap, union_df, local_region_overlap, local_region_identity = [], [], [], [], [], []
 
+
     df = pd.read_csv(cfg.data['rearrange'] + '/all-dataframe.tsv', sep='\t')
     identity_df = pd.read_csv(cfg.data['clustering'] + '/components-filtered.tsv', sep='\t')
 
@@ -202,6 +280,7 @@ def visualize_overlap_identity():
 
     union_region2 = df.loc[(df.d2 == 1)].groupby(['id1', 'id2']).size().to_frame('union-region2').sort_values(
         by=['id1', 'id2'])
+    min_lens = df.groupby(['id1', 'id2']).size()
 
     join = union_region2.merge(union_region1, on=['id1', 'id2'], how='right')
     # print(union_region1)
@@ -297,27 +376,27 @@ def visualize_overlap_identity():
     ax1.set_ylabel('region overlap', fontsize=20)
     ax1.set_xlabel('global sequence identity', fontsize=20)
     cm = plt.cm.get_cmap('seismic')
-    sc = ax1.scatter(ident, region_overlap, c=region_identity, cmap=cm)
+    sc = ax1.scatter(ident, region_overlap, c=m5['overlap-similar'], cmap=cm)
     plt.colorbar(sc)
 
-    ax2 = fig.add_subplot(1, 3, 2)
-    sc2 = ax2.scatter(ident, region_overlap, c=local_region_overlap, cmap=cm)
-    plt.colorbar(sc2)
-
-    ax2.set_xlabel('global sequence identity', fontsize=20)
-    ax2.set_ylabel('region overlap', fontsize=20)
-    ax2.set_title('colored by local region overlap')
-
-    ax3 = fig.add_subplot(1, 3, 3)
-    sc3 = ax3.scatter(ident, region_overlap, c=local_region_identity, cmap=cm)
-    plt.colorbar(sc3)
-
-    ax3.set_xlabel('global sequence identity', fontsize=20)
-    ax3.set_ylabel('region overlap', fontsize=20)
-    ax3.set_title('colored by local region identity')
+    # ax2 = fig.add_subplot(1, 3, 2)
+    # sc2 = ax2.scatter(ident, region_overlap, c=local_region_overlap, cmap=cm)
+    # plt.colorbar(sc2)
+    #
+    # ax2.set_xlabel('global sequence identity', fontsize=20)
+    # ax2.set_ylabel('region overlap', fontsize=20)
+    # ax2.set_title('colored by local region overlap')
+    #
+    # ax3 = fig.add_subplot(1, 3, 3)
+    # sc3 = ax3.scatter(ident, region_overlap, c=local_region_identity, cmap=cm)
+    # plt.colorbar(sc3)
+    #
+    # ax3.set_xlabel('global sequence identity', fontsize=20)
+    # ax3.set_ylabel('region overlap', fontsize=20)
+    # ax3.set_title('colored by local region identity')
     plt.show()
 
-    fig.savefig(cfg.data['visualizing'] + '/global_identity-region_overlap.png')
+    # fig.savefig(cfg.data['visualizing'] + '/global_identity-region_overlap.png')
     #
     # cm = plt.cm.get_cmap('seismic')
     # fig = plt.figure(figsize=(20, 10), dpi=50)
