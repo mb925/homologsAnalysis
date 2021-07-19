@@ -7,88 +7,200 @@ import os
 import sys
 import matplotlib.pyplot as plt
 import pandas as pd
+from matplotlib import pyplot
+
 import config as cfg
 from collections import Counter
 import statistics
-
+import numpy as np
 
 def main():
     # visualize_overlap_identity()
     # visualize_overlap_identity_hist()
     # visualize_alignments()
-    # generate_sqv_input('inconsistent_regions')
-    # generate_sqv_input('consistent_regions')
-    # generate_sqv_input('question_marks')
-    # generate_sqv_input('transferable_regions')
+
+    # generate_sqv_input(['inconsistent_regions', 'transferable_regions', 'question_marks', 'consistent_regions'])
+
     # visualize_pairs(['inconsistent_regions', 'transferable_regions', 'question_marks', 'consistent_regions'])
-    visualize_pairs_regions(['inconsistent_regions', 'transferable_regions', 'question_marks', 'consistent_regions'])
-    # compare_methods(['transferable_regions', 'inconsistent_regions', 'question_marks', 'consistent_regions'], 'term', 'Disorder function')
-    # compare_methods(['transferable_regions', 'inconsistent_regions', 'question_marks', 'consistent_regions'], 'ec', 'Structural state')
-    # compare_methods(['transferable_regions', 'inconsistent_regions', 'question_marks', 'consistent_regions'], 'term',
-    #                 'Interaction partner')
+    # visualize_pairs_regions(['inconsistent_regions', 'transferable_regions', 'question_marks', 'consistent_regions'])
+    # compare_methods(['transferable_regions','consistent_regions', 'inconsistent_regions', 'question_marks', ])
+    methods_count(['transferable_regions', 'inconsistent_regions', 'question_marks', 'consistent_regions'])
+
+def join_regions(x):
+    startdf = pd.DataFrame({'time': x['start'], 'what': 1})
+    enddf = pd.DataFrame({'time': x['end'], 'what': -1})
+    mergdf = pd.concat([startdf, enddf]).sort_values('time')
+    mergdf['running'] = mergdf['what'].cumsum()
+    mergdf['newwin'] = mergdf['running'].eq(1) & mergdf['what'].eq(1)
+    mergdf['group'] = mergdf['newwin'].cumsum()
+    x['group'] = mergdf['group'].loc[mergdf['what'].eq(1)]
+    res = x.groupby('group').agg({'ec': 'first'})
+    return res
+def split_padded(a,n):
+    padding = (-len(a))%n
+    return np.split(np.concatenate((a,np.zeros(padding))),n)
 
 
-def compare_methods(dataset_list, evaluated_column, term_namespace):
-    df2 = pd.read_csv(cfg.data['sequences_regions'] + '/search_in_disprot.tsv', sep='\t')
-    df2 = df2.loc[(df2.term_namespace == term_namespace)]
-    if evaluated_column != 'ec':
-        df2 = df2.drop_duplicates(subset=['acc', 'start', 'end'], keep=False)
-    methods_match_df = pd.DataFrame()
-    class_pairs = []
-    methods_match = []
-    techniques_df = pd.DataFrame(columns=['id1', 'id2', evaluated_column, 'dataset', 'methods_match'])
-    for dataset in dataset_list:
-        df1 = pd.read_csv(cfg.data['visualizing'] + '/alignment-files/' + dataset + '.csv', sep='\t').groupby(
-            ['id1', 'id2']).size()
-        reset_df = df1.reset_index()
+def generate_full_df(dataframe, dataset, full_df, merge):
+    if merge:
+        group_df = dataframe.groupby(['acc', 'ec']).apply(join_regions).reset_index(drop=True)
+        group_df = group_df.value_counts().rename_axis('ec').reset_index(name='counts')
 
-        for index, row in reset_df.iterrows():
-            m1 = df2.loc[(df2.acc == row['id1'])][evaluated_column]
-            m2 = df2.loc[(df2.acc == row['id2'])][evaluated_column]
+        print(group_df)
+    else:
+        group_df = dataframe['ec'].value_counts().rename_axis('ec').reset_index(name='counts')
+        print(group_df)
+
+    group_df['dataset'] = dataset.split('_')[0]
+    full_df = pd.concat([full_df, group_df])
+    return full_df
+
+
+def methods_count(datasets):
+    full_df = pd.DataFrame()
+    full_df1 = pd.DataFrame()
+    full_df2 = pd.DataFrame()
+    full_df3 = pd.DataFrame()
+    full_df4 = pd.DataFrame()
+
+    for dataset in datasets:
+        print(dataset)
+        df = pd.read_csv(cfg.data['visualizing'] + '/alignment-files/' + dataset + '.csv', sep='\t')
+
+        methods_df = pd.read_csv(cfg.data['visualizing'] + '/methods.csv', sep='\t')['ec'].to_numpy()
+
+        halves = split_padded(methods_df, 4)
+        subset1_methods = pd.DataFrame()
+        subset1_methods['ec'] = halves[0]
+        subset2_methods = pd.DataFrame()
+        subset2_methods['ec'] = halves[1]
+        subset3_methods = pd.DataFrame()
+        subset3_methods['ec'] = halves[2]
+        subset4_methods = pd.DataFrame()
+        subset4_methods['ec'] = halves[3]
+
+        pairs = df[['id1', 'id2']].drop_duplicates()
+        df = pd.unique(df[['id1', 'id2']].values.ravel('K'))
+
+        section = pd.DataFrame()
+        section['acc'] = df
+        search_in_disprot = pd.read_csv(cfg.data['sequences_regions'] + '/search-disprot-filtered.tsv', sep='\t')
+        merged_df = search_in_disprot.merge(section, on='acc')
+        merged_df = merged_df.drop_duplicates(subset=['acc', 'start', 'end', 'ec'], keep=False)[['acc', 'start', 'end', 'ec']]
+
+        # methods_subsets catplots
+        subset1_df = merged_df.merge(subset1_methods, on='ec')
+        subset2_df = merged_df.merge(subset2_methods, on='ec')
+        subset3_df = merged_df.merge(subset3_methods, on='ec')
+        subset4_df = merged_df.merge(subset3_methods, on='ec')
+
+        # merge = True
+        merge = False
+        full_df1 = generate_full_df(subset1_df, dataset, full_df, merge) # merging regions and count frequency
+        full_df2 = generate_full_df(subset2_df, dataset, full_df, merge)
+        full_df3 = generate_full_df(subset3_df, dataset, full_df, merge)
+        full_df4 = generate_full_df(subset4_df, dataset, full_df, merge)
+
+
+
+    fig = plt.figure()
+
+    ax1 = fig.add_subplot(141)
+    sns.barplot(x='dataset', y='counts', hue='ec', data=full_df1, ax=ax1)  # pass ax1
+    # ax1.set_ylim(0, 90)
+    ax1.set_ylim(0, 150)
+
+    ax2 = fig.add_subplot(142)
+    sns.barplot(x='dataset', y='counts', hue='ec', data=full_df2, ax=ax2)  # pass ax2
+    # ax2.set_ylim(0, 90)
+    ax1.set_ylim(0, 150)
+
+
+    ax3 = fig.add_subplot(143)
+    sns.barplot(x='dataset', y='counts', hue='ec', data=full_df3, ax=ax3)  # pass ax2
+    # ax3.set_ylim(0, 90)
+    ax1.set_ylim(0, 150)
+
+
+    ax4 = fig.add_subplot(144)
+    sns.barplot(x='dataset', y='counts', hue='ec', data=full_df4, ax=ax4)  # pass ax2
+    # ax4.set_ylim(0, 90)
+    ax1.set_ylim(0, 150)
+
+
+    plt.close(2)
+    plt.close(3)
+    plt.tight_layout()
+    # plt.show()
+    # plt.savefig(cfg.data['visualizing'] + '/statistics/count/methods_counts.png')
+    plt.savefig(cfg.data['visualizing'] + '/statistics/count/methods_counts_unmerged.png')
+
+    print(full_df)
+
+
+def compare_methods(datasets):
+
+    full_df = pd.DataFrame()
+
+    for dataset in datasets:
+        print(dataset)
+        techniques_df = pd.DataFrame(columns=['id1', 'id2', 'dataset', 'methods_match'],dtype=float)
+
+        df = pd.read_csv(cfg.data['visualizing'] + '/alignment-files/' + dataset + '.csv', sep='\t')
+
+        pairs = df[['id1', 'id2']].drop_duplicates()
+        df = pd.unique(df[['id1', 'id2']].values.ravel('K'))
+
+        section = pd.DataFrame()
+        section['acc'] = df
+        # only structural state
+        search_in_disprot = pd.read_csv(cfg.data['sequences_regions'] + '/search-disprot-filtered.tsv', sep='\t')
+        merged_df = search_in_disprot.merge(section, on='acc')
+        merged_df = merged_df.drop_duplicates(subset=['acc', 'start', 'end', 'ec'], keep=False)[
+            ['acc', 'start', 'end', 'ec']]
+
+        # methods_subsets catplots
+        # methods_match boxplot
+        for index, row in pairs.iterrows():
+            temp_df = pd.DataFrame()
+            temp_df['acc'] = [row.to_numpy()[0]]
+            m1 = merged_df.merge(temp_df, on='acc')['ec']
             m1 = m1.to_numpy()
+            temp_df['acc'] = [row.to_numpy()[1]]
+            m2 = merged_df.merge(temp_df, on='acc')['ec']
             m2 = m2.to_numpy()
 
-            methods_match_value = len(set(m1).intersection(set(m2)))
-            if methods_match_value != 0:
-                total = len(set(m1)) + len(set(m2))
-                methods_match_value = methods_match_value / total
-            methods_match_value = float('%.5f' % methods_match_value)
-            methods_match.append(methods_match_value)
+            m = np.concatenate((m1, m2), axis=None)
+            for el1 in set(m):
+                methods_match_value = len(set(m1).intersection(set(m2)))
+                if methods_match_value != 0:
+                    total = len(set(np.append(m1, m2)))
+                    methods_match_value = methods_match_value / total
 
-            for el1 in m1:
                 techniques_df = techniques_df.append(
-                    {'id1': row['id1'], 'id2': row['id2'], evaluated_column: el1, 'dataset': dataset.split('_')[0],
-                     'methods_match': methods_match_value},
-                    ignore_index=True)
-            for el2 in m2:
-                techniques_df = techniques_df.append(
-                    {'id1': row['id1'], 'id2': row['id2'], evaluated_column: el2, 'dataset': dataset.split('_')[0],
-                     'methods_match': methods_match_value},
+                    {'id1': row['id1'], 'id2': row['id2'], 'ec': el1,
+                     'methods_match': methods_match_value, 'dataset': dataset.split('_')[0]},
                     ignore_index=True)
 
-            class_pairs.append(dataset.split('_')[0])
 
-        methods_list = techniques_df.loc[(techniques_df.dataset == dataset.split('_')[0])][evaluated_column]
-        letter_counts = Counter(methods_list)
-        methods_count = pd.DataFrame.from_dict(letter_counts, orient='index')
-        methods_count.plot(kind='bar', title=dataset + ' ' + term_namespace)
-        plt.tight_layout()
-        # plt.savefig(cfg.data['visualizing'] + '/statistics/count/' + evaluated_column + '_' + term_namespace + '_' +
-        #             dataset.split('_')[0] + '.png')
+        mean_df = techniques_df.groupby('ec')['methods_match'].mean().round(1).to_frame()
+        mean_df['ec'] = mean_df.index
+        mean_df = mean_df.reset_index(drop=True)
+        mean_df['dataset'] = dataset.split('_')[0] # non sovrascrivere ogni volta
+        full_df = pd.concat([full_df, mean_df])
+        print(mean_df)
 
-    # methods_match_df['matching_' + evaluated_column] = methods_match
-    # methods_match_df['dataset'] = class_pairs
-    #
-    # sns.boxplot(x=methods_match_df["dataset"], y=methods_match_df["matching_" + evaluated_column])
-    # plt.tight_layout()
-    # plt.savefig(cfg.data['visualizing'] + '/statistics/' + evaluated_column + '_' + term_namespace + '_' + 'matching_methods_class.png')
 
-    # df_heatmap = techniques_df.pivot_table(values='methods_match', index=evaluated_column, columns='dataset', aggfunc=np.mean)
-    # sns.heatmap(df_heatmap, annot=True, cmap="BuPu", xticklabels=True, yticklabels=True)
-    # plt.tight_layout()
-    # plt.savefig(cfg.data['visualizing'] + '/statistics/' + evaluated_column + '_' + term_namespace + '_' + 'methods_heatmap.png')
+    df_heatmap = full_df.pivot_table(values='methods_match', index='ec', columns='dataset')
+    df_heatmap = df_heatmap[["consistent", "transferable", "inconsistent", "question"]]
 
-    print(methods_match_df)
+    pyplot.figure(figsize=(10, 10))
+    sns.heatmap(df_heatmap, annot=True, cmap="BuPu", xticklabels=True, yticklabels=True)
+    plt.tight_layout()
+    # plt.show()
+    plt.savefig(cfg.data['visualizing'] + '/statistics/ec_StructuralState_methods_heatmap.png')
+
+
 
 def visualize_pairs_regions(dataset_list):
     length, id, values, cl = [], [], [], []
@@ -130,7 +242,7 @@ def visualize_pairs_regions(dataset_list):
 
                 else:
                     # id1
-                    if line.split('\t')[6] == '1.0':
+                    if line.split('\t')[6] == '1.0': # region is present
                         count1 += 1
                         flag1 = True
                     else:
@@ -152,23 +264,20 @@ def visualize_pairs_regions(dataset_list):
             for el in counts1:
                 print(el)
                 id.append(el)
-                length.append('length_1')
                 values.append(counts1[el])
                 cl.append(dataset.split('_')[0])
 
             for el in counts2:
                 id.append(el)
-                length.append('length_2')
                 values.append(counts2[el])
                 cl.append(dataset.split('_')[0])
 
-    data['length'] = length
+    data['length'] = values
     data['id'] = id
-    data['value'] = values
     data['class'] = cl
-    sns.violinplot(data=data, y='value', split=True, hue='length', x='class', cut=0)
-    plt.show()
-    # plt.savefig(cfg.data['visualizing'] + '/statistics/regions_length_class.png')
+    sns.violinplot(data=data, y='length', x='class', cut=0, inner='quartile')
+    # plt.show()
+    plt.savefig(cfg.data['visualizing'] + '/statistics/regions_length_class.png')
 
 
 def visualize_pairs(dataset_list):
@@ -184,86 +293,83 @@ def visualize_pairs(dataset_list):
         for index, value in size_df_id1.items():
            if index[0] not in id1:
                id.append(index[0])
-               length.append('length_1')
                id1.append(index[0])
                values.append(value)
                cl.append(dataset.split('_')[0])
         for index, value in size_df_id2.items():
             if index[0] not in id2:
                 id.append(index[1])
-                length.append('length_2')
                 id2.append(index[1])
                 values.append(value)
                 cl.append(dataset.split('_')[0])
 
-    data['length'] = length
+    data['length'] = values
     data['id'] = id
-    data['value'] = values
     data['class'] = cl
 
-    sns.violinplot(data=data, y='value', split=True, hue='length', x='class')
-
+    sns.violinplot(y='length', x='class', data=data, cut=0, inner='quartile')
     plt.savefig(cfg.data['visualizing'] + '/statistics/protein_length_class.png')
 
 
-def generate_sqv_input(dataset):
-    df = pd.read_csv(cfg.data['visualizing'] + '/alignment-files/' + dataset + '.csv', sep='\t')
+def generate_sqv_input(datasets):
+    for dataset in datasets:
+        df = pd.read_csv(cfg.data['visualizing'] + '/alignment-files/' + dataset + '.csv', sep='\t')
 
-    ov_sh = pd.read_csv(cfg.data['visualizing'] + '/overlap-shortest.csv', sep='\t')
+        ov_sh = pd.read_csv(cfg.data['visualizing'] + '/overlap-shortest.csv', sep='\t')
 
-    dis = pd.read_csv(cfg.data['sequences_regions'] + '/search-disprot-filtered.tsv', sep='\t')
+        dis = pd.read_csv(cfg.data['sequences_regions'] + '/search-disprot-filtered.tsv', sep='\t')
 
-    ids = df[['id1', 'id2']].drop_duplicates(subset=['id1', 'id2'])
+        ids = df[['id1', 'id2']].drop_duplicates(subset=['id1', 'id2'])
 
-    data = {}
-    for el in ids.values:
-        example = df.loc[(df.id1 == el[0]) & (df.id2 == el[1])]
+        data = {}
+        for el in ids.values:
+            example = df.loc[(df.id1 == el[0]) & (df.id2 == el[1])]
 
-        print(example)
-        i = 0
-        region1 = ''
-        sequence1 = ''
-        sequence2 = ''
-        sequence_middle = ''
-        region2 = ''
+            print(example)
+            i = 0
+            region1 = ''
+            sequence1 = ''
+            sequence2 = ''
+            sequence_middle = ''
+            region2 = ''
 
-        while i < len(example['s1'].values):
-            if math.isnan(example['d1'].values[i]):
-                region1 += str('-')
-            else:
-                region1 += str(int(example['d1'].values[i]))
-            sequence1 += example['s1'].values[i]
-            sequence2 += example['s2'].values[i]
-            sequence_middle += example['match'].values[i]
-            if math.isnan(example['d2'].values[i]):
-                region2 += str('-')
-            else:
-                region2 += str(int(example['d2'].values[i]))
-            i += 1
+            while i < len(example['s1'].values):
+                if math.isnan(example['d1'].values[i]):
+                    region1 += str('-')
+                else:
+                    region1 += str(int(example['d1'].values[i]))
+                sequence1 += example['s1'].values[i]
+                sequence2 += example['s2'].values[i]
+                sequence_middle += example['match'].values[i]
+                if math.isnan(example['d2'].values[i]):
+                    region2 += str('-')
+                else:
+                    region2 += str(int(example['d2'].values[i]))
+                i += 1
 
-        seqs = []
-        row = ov_sh.loc[(ov_sh.id1 == el[0]) & (ov_sh.id2 == el[1])]
-        print(el[0])
-        # print(el[1])
+            seqs = []
+            row = ov_sh.loc[(ov_sh.id1 == el[0]) & (ov_sh.id2 == el[1])]
+            print(el[0])
+            # print(el[1])
 
-        organism1 = (dis.loc[dis['acc'] == el[0]])['organism'].iloc[0]
-        organism2 = (dis.loc[dis['acc'] == el[1]])['organism'].iloc[0]
+            organism1 = (dis.loc[dis['acc'] == el[0]])['organism'].iloc[0]
+            organism2 = (dis.loc[dis['acc'] == el[1]])['organism'].iloc[0]
 
-        print(organism1)
-        print(organism2)
+            print(organism1)
+            print(organism2)
 
-        values = {'overlap': row['overlap-similar'].values[0], 'shortest_region': row['shortest_region'].values[0],
-                  'identity': row['identity'].values[0]}
-        seqs.append({'sequence': region1, 'id': 1})
-        seqs.append({'sequence': sequence1, 'id': 2, 'label': organism1})
-        seqs.append({'sequence': sequence_middle, 'id': 3})
-        seqs.append({'sequence': sequence2, 'id': 4, 'label': organism2})
-        seqs.append({'sequence': region2, 'id': 5})
+            values = {'overlap': row['region_overlap'].values[0], 'shortest_region': row['local_region_overlap'].values[0],
+                      'identity': row['identity'].values[0]}
+            seqs.append({'sequence': region1, 'id': 1})
+            seqs.append({'sequence': sequence1, 'id': 2, 'label': el[0]})
+            seqs.append({'sequence': sequence_middle, 'id': 3})
+            seqs.append({'sequence': sequence2, 'id': 4, 'label': el[1]})
+            seqs.append({'sequence': region2, 'id': 5})
 
-        data[el[0] + '-' + el[1]] = {'data': seqs, 'values': values}
+            data[el[0] + '-' + el[1]] = {'data': seqs, 'values': values}
 
-    with open(cfg.data['visualizing'] + '/alignment-files/sqv/' + dataset + '.json', 'w') as json_file:
-        json.dump(data, json_file)
+        with open(cfg.data['visualizing'] + '/alignment-files/sqv/' + dataset + '.json', 'w') as json_file:
+            json.dump(data, json_file)
 
 
 def visualize_overlap_identity():
@@ -371,32 +477,43 @@ def visualize_overlap_identity():
 
     fig.suptitle('overlap/union', fontsize=24)
 
-    ax1 = fig.add_subplot(1, 3, 1)
-    ax1.set_title('colored by region overlap')
-    ax1.set_ylabel('region overlap', fontsize=20)
-    ax1.set_xlabel('global sequence identity', fontsize=20)
+    # ax1 = fig.add_subplot(1, 3, 1)
+    # ax1.set_title('colored by overlap length')
+    # ax1.set_ylabel('region overlap', fontsize=20)
+    # ax1.set_xlabel('global sequence identity', fontsize=20)
+    # cm = plt.cm.get_cmap('seismic')
+    # sc = ax1.scatter(ident, region_overlap, c=m5['overlap-similar'], cmap=cm)
+    # plt.colorbar(sc)
+
+
     cm = plt.cm.get_cmap('seismic')
-    sc = ax1.scatter(ident, region_overlap, c=m5['overlap-similar'], cmap=cm)
+
+    ax1 = fig.add_subplot(1, 3, 1)
+    sc2 = ax1.scatter(ident, region_overlap, c=local_region_overlap, cmap=cm)
+    plt.colorbar(sc2)
+
+    ax1.set_xlabel('global sequence identity', fontsize=20)
+    ax1.set_ylabel('region overlap', fontsize=20)
+    ax1.set_title('colored by local region overlap')
+
+    ax2 = fig.add_subplot(1, 3, 2)
+    ax2.set_title('colored by region identity')
+    ax2.set_ylabel('region overlap', fontsize=20)
+    ax2.set_xlabel('global sequence identity', fontsize=20)
+    sc = ax2.scatter(ident, region_overlap, c=region_identity, cmap=cm)
     plt.colorbar(sc)
 
-    # ax2 = fig.add_subplot(1, 3, 2)
-    # sc2 = ax2.scatter(ident, region_overlap, c=local_region_overlap, cmap=cm)
-    # plt.colorbar(sc2)
-    #
-    # ax2.set_xlabel('global sequence identity', fontsize=20)
-    # ax2.set_ylabel('region overlap', fontsize=20)
-    # ax2.set_title('colored by local region overlap')
-    #
-    # ax3 = fig.add_subplot(1, 3, 3)
-    # sc3 = ax3.scatter(ident, region_overlap, c=local_region_identity, cmap=cm)
-    # plt.colorbar(sc3)
-    #
-    # ax3.set_xlabel('global sequence identity', fontsize=20)
-    # ax3.set_ylabel('region overlap', fontsize=20)
-    # ax3.set_title('colored by local region identity')
-    plt.show()
+    ax3 = fig.add_subplot(1, 3, 3)
+    sc3 = ax3.scatter(ident, region_overlap, c=local_region_identity, cmap=cm)
+    plt.colorbar(sc3)
 
-    # fig.savefig(cfg.data['visualizing'] + '/global_identity-region_overlap.png')
+    ax3.set_xlabel('global sequence identity', fontsize=20)
+    ax3.set_ylabel('region overlap', fontsize=20)
+    ax3.set_title('colored by local region identity')
+    # plt.show()
+
+    # fig.savefig(cfg.data['visualizing'] + '/global_identity-overlap_length.png')
+    fig.savefig(cfg.data['visualizing'] + '/global_identity-region_overlap.png')
     #
     # cm = plt.cm.get_cmap('seismic')
     # fig = plt.figure(figsize=(20, 10), dpi=50)
