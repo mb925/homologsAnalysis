@@ -22,9 +22,10 @@ def main():
     # generate_sqv_input(['inconsistent_regions', 'transferable_regions', 'question_marks', 'consistent_regions'])
 
     # visualize_pairs(['inconsistent_regions', 'transferable_regions', 'question_marks', 'consistent_regions'])
-    # visualize_pairs_regions(['inconsistent_regions', 'transferable_regions', 'question_marks', 'consistent_regions'])
+    visualize_pairs_regions(['inconsistent_regions', 'transferable_regions', 'question_marks', 'consistent_regions'])
+    # visualize_regions_proteins_pairs()
     # compare_methods(['transferable_regions','consistent_regions', 'inconsistent_regions', 'question_marks', ])
-    methods_count(['transferable_regions', 'inconsistent_regions', 'question_marks', 'consistent_regions'])
+    # methods_count(['transferable_regions', 'inconsistent_regions', 'question_marks', 'consistent_regions'])
 
 def join_regions(x):
     startdf = pd.DataFrame({'time': x['start'], 'what': 1})
@@ -200,89 +201,85 @@ def compare_methods(datasets):
     # plt.show()
     plt.savefig(cfg.data['visualizing'] + '/statistics/ec_StructuralState_methods_heatmap.png')
 
+def visualize_regions_proteins_pairs():
+    regions = pd.read_csv(cfg.data['visualizing'] + '/statistics/temporary-files/regions_length_class.csv', sep='\t')
+    proteins = pd.read_csv(cfg.data['visualizing'] + '/statistics/temporary-files/proteins_length_class.csv', sep='\t')
+    merge = regions.merge(proteins, on=['id'], how='right')
+    df = pd.DataFrame()
+    regions_proteins = df.loc[merge['length_y'] > 0, 'region/protein'] = merge['length_x'] / merge['length_y']
+    merge['regions_proteins'] = regions_proteins
+    print('jj')
+
 
 
 def visualize_pairs_regions(dataset_list):
     length, id, values, cl = [], [], [], []
-    data = pd.DataFrame({'length': length, 'id': id, 'value': values, 'class': cl})
-    for dataset in dataset_list:
-        with open(cfg.data['visualizing'] + '/alignment-files/' + dataset + '.csv', 'r') as file:
-            counts1 = {}
-            counts2 = {}
-            counts_id1 = []
-            counts_id2 = []
-            pair = ''
-            count1 = 0
-            count2 = 0
-            next(file)
-            flag1 = False
-            flag2 = False
-            for line in file:
-                if line.split('\t')[0] + '_' + line.split('\t')[1] != pair:
+    data = pd.DataFrame({'length': length, 'id': id, 'class': cl})
+    # for dataset in dataset_list:
 
-                    #id1
-                    if len(counts_id1) > 0:
-                        counts1[line.split('\t')[0]] = statistics.mean(counts_id1)
-                    else:
-                        counts1[line.split('\t')[0]] = 0
-                    count1 = 0
-                    flag1 = False
-                    counts_id1 = []
+    ids = []
 
-                    #id2
-                    if len(counts_id2) > 0:
-                        counts2[line.split('\t')[1]] = statistics.mean(counts_id2)
-                    else:
-                        counts2[line.split('\t')[1]] = 0
-                    count2 = 0
-                    flag2 = False
-                    counts_id2 = []
+    # id1
+    with open(cfg.data['visualizing'] + '/alignment-files/inconsistent_regions.csv', 'r') as file:
+        pair = ''
+        next(file)
+        for line in file:
+            # every time there is a new id
+            if line.split('\t')[0] + '_' + line.split('\t')[1] != pair:
+                ids.append(line.split('\t')[0])
+                if ids.count(line.split('\t')[0]) <= 1:
 
+                    print('change!!!!!!!!!!!! ' + line.split('\t')[0] + '_' + line.split('\t')[1])
                     pair = line.split('\t')[0] + '_' + line.split('\t')[1]
+                    with open(cfg.data['visualizing'] + '/statistics/temporary-files/single-files/inconsistent_regions/' + line.split('\t')[0] + '.csv',
+                              'w') as single_file:
+                        single_file.write(line.split('\t')[0] + '\t' + line.split('\t')[6])
+                    print(line)
+            else:
+                if ids.count(line.split('\t')[0]) <= 1:
+                    print(line)
+                    with open(cfg.data['visualizing'] + '/statistics/temporary-files/single-files/inconsistent_regions/' + line.split('\t')[0] + '.csv',
+                              'a') as single_file:
+                        single_file.write(line.split('\t')[0]+ '\t' + line.split('\t')[6])
 
-                else:
-                    # id1
-                    if line.split('\t')[6] == '1.0': # region is present
-                        count1 += 1
-                        flag1 = True
-                    else:
-                        if flag1:
-                            counts_id1.append(count1)
-                            count1 = 0
-                            flag1 = False
+    #id2
+    with open(cfg.data['visualizing'] + '/alignment-files/inconsistent_regions.csv', 'r') as file:
+        pair = ''
+        next(file)
 
-                    # id2
-                    if line.split('\t')[7] == '1.0':
-                        count2 += 1
-                        flag2 = True
-                    else:
-                        if flag2:
-                            counts_id2.append(count2)
-                            count2 = 0
-                            flag2 = False
+        for line in file:
+            # every time there is a new id
+            if line.split('\t')[0] + '_' + line.split('\t')[1] != pair:
+                ids.append(line.split('\t')[1])
+                if ids.count(line.split('\t')[0]) <= 1:
+                    print('change!!!!!!!!!!!! ' + line.split('\t')[0] + '_' + line.split('\t')[1])
+                    pair = line.split('\t')[0] + '_' + line.split('\t')[1]
+                    with open(cfg.data['visualizing'] + '/statistics/temporary-files/single-files/inconsistent_regions/' +
+                              line.split('\t')[1] + '.csv',
+                              'w') as single_file:
+                        single_file.write(line.split('\t')[1] + '\t' + line.split('\t')[7])
+                    print(line)
+            else:
+                print(line)
+                if ids.count(line.split('\t')[0]) <= 1:
+                    with open(cfg.data['visualizing'] + '/statistics/temporary-files/single-files/inconsistent_regions/' +
+                              line.split('\t')[1] + '.csv',
+                              'a') as single_file:
+                        single_file.write(line.split('\t')[1] + '\t' + line.split('\t')[7])
+    #
+    # data['length'] = values
+    # data['id'] = id
+    # data['class'] = cl
 
-            for el in counts1:
-                print(el)
-                id.append(el)
-                values.append(counts1[el])
-                cl.append(dataset.split('_')[0])
-
-            for el in counts2:
-                id.append(el)
-                values.append(counts2[el])
-                cl.append(dataset.split('_')[0])
-
-    data['length'] = values
-    data['id'] = id
-    data['class'] = cl
-    sns.violinplot(data=data, y='length', x='class', cut=0, inner='quartile')
-    # plt.show()
-    plt.savefig(cfg.data['visualizing'] + '/statistics/regions_length_class.png')
+    # sns.violinplot(data=data, y='length', x='class', cut=0, inner='quartile')
+    # # plt.show()
+    # data.to_csv(cfg.data['visualizing'] + '/statistics/temporary-files/regions_length_class.csv', index=None, sep='\t')
+    # plt.savefig(cfg.data['visualizing'] + '/statistics/regions_length_class.png')
 
 
 def visualize_pairs(dataset_list):
     length, id, values, cl = [], [], [], []
-    data = pd.DataFrame({'length': length, 'id': id, 'value': values, 'class': cl})
+    data = pd.DataFrame({'length': length, 'id': id, 'class': cl})
     for dataset in dataset_list:
         df = pd.read_csv(cfg.data['visualizing'] + '/alignment-files/' + dataset + '.csv', sep='\t')
         df_id1 = df.loc[df.s1 != '-']
@@ -308,7 +305,9 @@ def visualize_pairs(dataset_list):
     data['class'] = cl
 
     sns.violinplot(y='length', x='class', data=data, cut=0, inner='quartile')
-    plt.savefig(cfg.data['visualizing'] + '/statistics/protein_length_class.png')
+    data.to_csv(cfg.data['visualizing'] + '/statistics/temporary-files/proteins_length_class.csv', index=None, sep='\t')
+
+    # plt.savefig(cfg.data['visualizing'] + '/statistics/protein_length_class.png')
 
 
 def generate_sqv_input(datasets):
