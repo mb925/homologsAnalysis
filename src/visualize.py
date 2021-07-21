@@ -206,73 +206,59 @@ def visualize_regions_proteins_pairs():
     proteins = pd.read_csv(cfg.data['visualizing'] + '/statistics/temporary-files/proteins_length_class.csv', sep='\t')
     merge = regions.merge(proteins, on=['id'], how='right')
     df = pd.DataFrame()
-    regions_proteins = df.loc[merge['length_y'] > 0, 'region/protein'] = merge['length_x'] / merge['length_y']
+    regions_proteins = df.loc[merge['length_y'] > 0, 'region/protein'] = merge['length_x'] / merge['length_y'] # class_y has incorrect values
     merge['regions_proteins'] = regions_proteins
+    sns.violinplot(data=merge, y='regions_proteins', x='class_x', cut=0, inner='quartile')
+    # plt.show()
+    plt.savefig(cfg.data['visualizing'] + '/statistics/regions_proteins_length.png')
+
     print('jj')
 
+def count_consec(listrand):
+    count=0
+    consec_list=[]
+    for i in range(len(listrand[:-1])):
+        if listrand[i]+1 == listrand[i+1]:
+            count+=1
+        else:
+            consec_list.append(count)
+            count=0
 
+    # Account for the last iteration
+    consec_list.append(count)
+
+    return consec_list
 
 def visualize_pairs_regions(dataset_list):
-    length, id, values, cl = [], [], [], []
-    data = pd.DataFrame({'length': length, 'id': id, 'class': cl})
-    # for dataset in dataset_list:
+    length, ids, values, cl = [], [], [], []
+    data = pd.DataFrame({'length': length, 'id': ids, 'class': cl})
+    for dataset in dataset_list:
+        df = pd.read_csv(cfg.data['visualizing'] + '/alignment-files/' + dataset + '.csv', sep='\t')
 
-    ids = []
+        df_1 = df.loc[(df.d1 != 0)].dropna()
+        df_1 = df_1[['id1', 'p1', 'd1']].rename(columns={'id1': 'id','p1': 'position'}) # keep only disordered positions
+        df_2 = df.loc[(df.d2 != 0)].dropna()
+        df_2 = df_2[['id2', 'p2', 'd2']].rename(columns={'id2': 'id','p2': 'position'})
+        df = pd.concat([df_1, df_2]).drop_duplicates()
+        dict_disorder = {}
 
-    # id1
-    with open(cfg.data['visualizing'] + '/alignment-files/inconsistent_regions.csv', 'r') as file:
-        pair = ''
-        next(file)
-        for line in file:
-            # every time there is a new id
-            if line.split('\t')[0] + '_' + line.split('\t')[1] != pair:
-                ids.append(line.split('\t')[0])
-                if ids.count(line.split('\t')[0]) <= 1:
+        for el in df.iterrows():
+            id = el[1]['id']
+            if id not in dict_disorder:
+                dict_disorder[id] = []
+            dict_disorder[id].append(int(el[1]['position']))
+        for el in dict_disorder:
+            ids.append(el)
+            len = round(statistics.mean(count_consec(dict_disorder[el])), 1)
+            length.append(len)
+            cl.append(dataset.split('_') [0])
 
-                    print('change!!!!!!!!!!!! ' + line.split('\t')[0] + '_' + line.split('\t')[1])
-                    pair = line.split('\t')[0] + '_' + line.split('\t')[1]
-                    with open(cfg.data['visualizing'] + '/statistics/temporary-files/single-files/inconsistent_regions/' + line.split('\t')[0] + '.csv',
-                              'w') as single_file:
-                        single_file.write(line.split('\t')[0] + '\t' + line.split('\t')[6])
-                    print(line)
-            else:
-                if ids.count(line.split('\t')[0]) <= 1:
-                    print(line)
-                    with open(cfg.data['visualizing'] + '/statistics/temporary-files/single-files/inconsistent_regions/' + line.split('\t')[0] + '.csv',
-                              'a') as single_file:
-                        single_file.write(line.split('\t')[0]+ '\t' + line.split('\t')[6])
+    data['length'] = length
+    data['id'] = ids
+    data['class'] = cl
 
-    #id2
-    with open(cfg.data['visualizing'] + '/alignment-files/inconsistent_regions.csv', 'r') as file:
-        pair = ''
-        next(file)
-
-        for line in file:
-            # every time there is a new id
-            if line.split('\t')[0] + '_' + line.split('\t')[1] != pair:
-                ids.append(line.split('\t')[1])
-                if ids.count(line.split('\t')[0]) <= 1:
-                    print('change!!!!!!!!!!!! ' + line.split('\t')[0] + '_' + line.split('\t')[1])
-                    pair = line.split('\t')[0] + '_' + line.split('\t')[1]
-                    with open(cfg.data['visualizing'] + '/statistics/temporary-files/single-files/inconsistent_regions/' +
-                              line.split('\t')[1] + '.csv',
-                              'w') as single_file:
-                        single_file.write(line.split('\t')[1] + '\t' + line.split('\t')[7])
-                    print(line)
-            else:
-                print(line)
-                if ids.count(line.split('\t')[0]) <= 1:
-                    with open(cfg.data['visualizing'] + '/statistics/temporary-files/single-files/inconsistent_regions/' +
-                              line.split('\t')[1] + '.csv',
-                              'a') as single_file:
-                        single_file.write(line.split('\t')[1] + '\t' + line.split('\t')[7])
-    #
-    # data['length'] = values
-    # data['id'] = id
-    # data['class'] = cl
-
-    # sns.violinplot(data=data, y='length', x='class', cut=0, inner='quartile')
-    # # plt.show()
+    sns.violinplot(data=data, y='length', x='class', cut=0, inner='quartile')
+    plt.show()
     # data.to_csv(cfg.data['visualizing'] + '/statistics/temporary-files/regions_length_class.csv', index=None, sep='\t')
     # plt.savefig(cfg.data['visualizing'] + '/statistics/regions_length_class.png')
 
